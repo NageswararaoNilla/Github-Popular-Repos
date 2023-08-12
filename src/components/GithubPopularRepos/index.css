@@ -1,1 +1,25 @@
-/* Write your CSS here */
+.app-container {
+  display: flex;
+  justify-content: center;
+  /* align-items: center; */
+  min-height: 100vh;
+}
+
+.responsive-container {
+  display: flex;
+  flex-direction: column;
+  /* justify-content: center; */
+  align-items: center;
+}
+
+.languages-list {
+  list-style-type: none;
+  display: flex;
+}
+
+.repos-container {
+  list-style-type: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
