@@ -6,6 +6,13 @@ import RepositoryItem from '../RepositoryItem'
 
 import './index.css'
 
+const apiStatusConstants = {
+  initial: 'INITIAL',
+  success: 'SUCCESS',
+  failure: 'FAILURE',
+  inProgress: 'IN_PROGRESS',
+}
+
 const languageFiltersData = [
   {id: 'ALL', language: 'All'},
   {id: 'JAVASCRIPT', language: 'Javascript'},
@@ -14,99 +21,120 @@ const languageFiltersData = [
   {id: 'CSS', language: 'CSS'},
 ]
 
-// Write your code here
 class GithubPopularRepos extends Component {
   state = {
-    githubReposList: [],
-    languageId: languageFiltersData[0].id,
-    isFailure: false,
-    isLoading: true,
+    apiStatus: apiStatusConstants.initial,
+    repositoriesData: [],
+    activeLanguageFilterId: languageFiltersData[0].id,
   }
 
   componentDidMount() {
-    this.getRepos()
+    this.getRepositories()
   }
 
-  successView = dataList => {
-    const updateData = dataList.map(each => ({
-      name: each.name,
-      id: each.id,
-      issuesCount: each.issues_count,
-      forksCount: each.forks_count,
-      starsCount: each.stars_count,
-      avatarUrl: each.avatar_url,
-    }))
+  getRepositories = async () => {
+    const {activeLanguageFilterId} = this.state
     this.setState({
-      githubReposList: updateData,
-      isFailure: false,
-      isLoading: false,
+      apiStatus: apiStatusConstants.inProgress,
     })
-  }
-
-  getRepos = async () => {
-    this.setState({isLoading: true})
-    const {languageId} = this.state
-    const url = `https://apis.ccbp.in/popular-repos?language=${languageId}`
-    const response = await fetch(url)
-    const data = await response.json()
-    if (response.ok === true) {
-      this.successView(data.popular_repos)
+    const apiUrl = `https://apis.ccbp.in/popular-repos?language=${activeLanguageFilterId}`
+    const response = await fetch(apiUrl)
+    if (response.ok) {
+      const fetchedData = await response.json()
+      const updatedData = fetchedData.popular_repos.map(eachRepository => ({
+        id: eachRepository.id,
+        imageUrl: eachRepository.avatar_url,
+        name: eachRepository.name,
+        starsCount: eachRepository.stars_count,
+        forksCount: eachRepository.forks_count,
+        issuesCount: eachRepository.issues_count,
+      }))
+      this.setState({
+        repositoriesData: updatedData,
+        apiStatus: apiStatusConstants.success,
+      })
     } else {
-      this.setState({isFailure: true})
+      this.setState({
+        apiStatus: apiStatusConstants.failure,
+      })
     }
   }
 
-  updateActiveId = selectId => {
-    this.setState({languageId: selectId}, this.getRepos)
-  }
-
-  getRepositories = () => {
-    const {githubReposList, isLoading} = this.state
-
-    return (
-      <div>
-        {isLoading ? (
-          <div data-testid="loader">
-            <Loader type="ThreeDots" color="#0284c7" height={80} width={80} />
-          </div>
-        ) : (
-          <ul className="repos-container">
-            {githubReposList.map(eachRepo => (
-              <RepositoryItem repoDetails={eachRepo} key={eachRepo.id} />
-            ))}
-          </ul>
-        )}
-      </div>
-    )
-  }
-
-  getFailureView = () => (
-    <div>
-      <img
-        src="https://assets.ccbp.in/frontend/react-js/api-failure-view.png"
-        alt="failure view"
-      />
+  renderLoadingView = () => (
+    <div data-testid="loader">
+      <Loader color="#0284c7" height={80} type="ThreeDots" width={80} />
     </div>
   )
 
+  renderFailureView = () => (
+    <div className="failure-view-container">
+      <img
+        src="https://assets.ccbp.in/frontend/react-js/api-failure-view.png"
+        alt="failure view"
+        className="failure-view-image"
+      />
+      <h1 className="error-message">Something Went Wrong</h1>
+    </div>
+  )
+
+  renderRepositoriesListView = () => {
+    const {repositoriesData} = this.state
+
+    return (
+      <ul className="repositories-list">
+        {repositoriesData.map(eachRepository => (
+          <RepositoryItem
+            key={eachRepository.id}
+            repositoryDetails={eachRepository}
+          />
+        ))}
+      </ul>
+    )
+  }
+
+  renderRepositories = () => {
+    const {apiStatus} = this.state
+
+    switch (apiStatus) {
+      case apiStatusConstants.success:
+        return this.renderRepositoriesListView()
+      case apiStatusConstants.failure:
+        return this.renderFailureView()
+      case apiStatusConstants.inProgress:
+        return this.renderLoadingView()
+      default:
+        return null
+    }
+  }
+
+  setActiveLanguageFilterId = newFilterId => {
+    this.setState({activeLanguageFilterId: newFilterId}, this.getRepositories)
+  }
+
+  renderLanguageFiltersList = () => {
+    const {activeLanguageFilterId} = this.state
+
+    return (
+      <ul className="filters-list">
+        {languageFiltersData.map(eachLanguageFilter => (
+          <LanguageFilterItem
+            key={eachLanguageFilter.id}
+            isActive={eachLanguageFilter.id === activeLanguageFilterId}
+            languageFilterDetails={eachLanguageFilter}
+            setActiveLanguageFilterId={this.setActiveLanguageFilterId}
+          />
+        ))}
+      </ul>
+    )
+  }
+
   render() {
-    const {isFailure, languageId} = this.state
-    // console.log(languageId)
     return (
       <div className="app-container">
         <div className="responsive-container">
-          <h1>Popular</h1>
-          <ul className="languages-list">
-            {languageFiltersData.map(eachLanguage => (
-              <LanguageFilterItem
-                key={eachLanguage.id}
-                languageDetails={eachLanguage}
-                updateActiveId={this.updateActiveId}
-                isActiveId={languageId === eachLanguage.id}
-              />
-            ))}
-          </ul>
-          {isFailure ? this.getFailureView() : this.getRepositories()}
+          <h1 className="heading">Popular</h1>
+          {this.renderLanguageFiltersList()}
+          {this.renderRepositories()}
         </div>
       </div>
     )
